@@ -1,0 +1,18 @@
+{
+  "name": "nexus-panel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nexus Panel — a production-ready Cloudflare Workers control panel for managing Proxy/VPN nodes, domains, configs, subscriptions and Cloudflare resources.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "wrangler deploy --dry-run",
+    "validate": "wrangler deploy --dry-run",
+    "migrate:local": "wrangler d1 migrations apply nexus-panel-db --local",
+    "migrate:remote": "wrangler d1 migrations apply nexus-panel-db --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

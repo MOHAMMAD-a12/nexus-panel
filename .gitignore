@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Wrangler
+.wrangler/
+.wrangler-deploy/
+.wrangler-state/
+.dev.vars
+.miniflare/
+
+# Local secrets / env (never commit real secrets — use `wrangler secret put`)
+.dev.vars.*
+.env
+.env.*
+*.local
+
+# Build output
+dist/
+.out/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Optional: keep wrangler.toml tracked (it contains only non-secret [vars] + placeholders).
+# If you ever paste real IDs/tokens into it, uncomment the line below.
+# wrangler.toml

@@ -1,0 +1,52 @@
+name = "nexus-panel"
+main = "src/worker/index.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Runtime settings
+workers_dev = true
+send_metrics = false
+
+# D1 database (primary datastore)
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-panel-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+# KV namespaces (settings, cache, rate-limit counters)
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_ID"
+
+# Cron triggers for periodic jobs (health checks, subscription expiry, notifications)
+[triggers]
+crons = ["*/5 * * * *", "0 * * * *", "0 0 * * *"]
+
+# Environment variables (NON-SECRET). Never put tokens here.
+[vars]
+ENVIRONMENT = "production"
+DEMO_MODE = "false"
+APP_NAME = "Nexus Panel"
+SESSION_TTL = "86400"
+RATE_LIMIT = "120"
+ALLOWED_ORIGINS = "*"
+
+# Secrets are set via `wrangler secret put` and read at runtime via env.*:
+#   CLOUDFLARE_API_TOKEN
+#   CLOUDFLARE_ACCOUNT_ID
+#   JWT_SECRET
+#   ENCRYPTION_KEY
+#   ADMIN_EMAIL
+#   ADMIN_PASSWORD
+
+# Static assets (frontend HTML/CSS/JS) are bundled and served by the Worker.
+# The frontend uses hash-based routing so no SPA rewrite is required.
+[assets]
+binding = "ASSETS"
+directory = "public"
+not_found_handling = "single-page-application"
+
+# Routes — uncomment and set to your own domain when not using *.workers.dev
+# routes = [
+#   { pattern = "panel.example.com", custom_domain = true }
+# ]
