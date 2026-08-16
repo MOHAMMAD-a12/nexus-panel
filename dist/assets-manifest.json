@@ -1,0 +1,162 @@
+[
+  {
+    "path": "/css/styles.css",
+    "file": "public/css/styles.css",
+    "contentType": "text/css; charset=utf-8"
+  },
+  {
+    "path": "/index.html",
+    "file": "public/index.html",
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "path": "/js/components/charts.js",
+    "file": "public/js/components/charts.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/components/commandPalette.js",
+    "file": "public/js/components/commandPalette.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/components/modal.js",
+    "file": "public/js/components/modal.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/components/qrcode.js",
+    "file": "public/js/components/qrcode.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/components/table.js",
+    "file": "public/js/components/table.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/components/toast.js",
+    "file": "public/js/components/toast.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/api.js",
+    "file": "public/js/core/api.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/i18n.js",
+    "file": "public/js/core/i18n.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/icons.js",
+    "file": "public/js/core/icons.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/router.js",
+    "file": "public/js/core/router.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/store.js",
+    "file": "public/js/core/store.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/theme.js",
+    "file": "public/js/core/theme.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/core/ui.js",
+    "file": "public/js/core/ui.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/main.js",
+    "file": "public/js/main.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/analytics.js",
+    "file": "public/js/pages/analytics.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/apikeys.js",
+    "file": "public/js/pages/apikeys.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/cloudflare.js",
+    "file": "public/js/pages/cloudflare.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/configs.js",
+    "file": "public/js/pages/configs.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/dashboard.js",
+    "file": "public/js/pages/dashboard.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/domains.js",
+    "file": "public/js/pages/domains.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/endpoints.js",
+    "file": "public/js/pages/endpoints.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/generated.js",
+    "file": "public/js/pages/generated.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/generator.js",
+    "file": "public/js/pages/generator.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/logs.js",
+    "file": "public/js/pages/logs.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/nodes.js",
+    "file": "public/js/pages/nodes.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/protocols.js",
+    "file": "public/js/pages/protocols.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/settings.js",
+    "file": "public/js/pages/settings.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/subscriptions.js",
+    "file": "public/js/pages/subscriptions.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/templates.js",
+    "file": "public/js/pages/templates.js",
+    "contentType": "text/javascript; charset=utf-8"
+  },
+  {
+    "path": "/js/pages/users.js",
+    "file": "public/js/pages/users.js",
+    "contentType": "text/javascript; charset=utf-8"
+  }
+]
