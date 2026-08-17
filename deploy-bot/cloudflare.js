@@ -131,8 +131,6 @@ export async function createKV(token, accountId, title) {
   // The KV create endpoint returns the id at the TOP LEVEL (json.id), not nested under
   // result — unlike most CF endpoints. Mirror wrangler's `createKVNamespace` (response.id).
   const id = json?.id || json?.result?.id || json?.result?.uuid || json?.uuid;
-  // Diagnostic: log the raw shape so wrangler tail shows us exactly what CF returns.
-  console.log('[deploy-bot] createKV raw response:', JSON.stringify(json).slice(0, 500), '=> id:', id);
   if (!id) {
     throw new DeployError('kv', 'Cloudflare did not return a KV namespace id.');
   }
