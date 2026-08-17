@@ -1,8 +1,14 @@
 // deploy-bot/deploy.js — orchestrates the end-to-end deploy for one user.
 //
-// Sequence: fetch bundle → create D1 → create KV → upload script (bindings) → set secrets
-// → upload dashboard assets → run migrations → resolve subdomain → return URL + admin creds.
-// Progress is streamed to the chat via the supplied `onProgress(stepLabel)` callback.
+// Sequence (PHASE 1, all in the first invocation):
+//   fetch bundle → create D1 → create KV → upload script (bindings) → set secrets
+//   → run migrations → resolve subdomain → return URL + admin creds.
+//
+// The static dashboard files (PHASE 2) are uploaded to the user's KV *after* the URL is
+// handed to the user, because a freshly-created KV namespace can take >30s to be writable
+// across Cloudflare's edge — longer than a Worker's waitUntil budget allows in one shot.
+// Instead we chain fresh invocations (see index.js /__assets route) that each retry with
+// their own time budget until the namespace is ready.
 //
 // SECURITY: the user's token is passed in (already decrypted) and used only for Cloudflare
 // calls. It is NEVER returned to the chat. Admin creds are generated here and shown once.
@@ -18,12 +24,7 @@ import {
   buildBindings,
   DeployError,
 } from './cloudflare.js';
-import {
-  fetchBundle,
-  fetchDashboardFiles,
-  uploadAssets,
-  applyMigrations,
-} from './assets.js';
+import { fetchBundle, fetchDashboardFiles, applyMigrations, uploadAssets } from './assets.js';
 import { MSG } from './messages.js';
 
 // Cloudflare Worker / D1 / KV names must be lowercase alphanumeric + dashes only.
@@ -36,6 +37,8 @@ function genAdminPassword() {
   return `${a}-${b}`.slice(0, 18);
 }
 
+// PHASE 1: build every Cloudflare resource and return the live URL + admin creds, plus an
+// `assetJob` describing what still needs uploading (dashboard files → user KV).
 export async function deployUserPanel({ token, accountId, cfg, onProgress }) {
   const progress = (label) => onProgress && onProgress(label);
   let scriptName = '';
@@ -86,17 +89,12 @@ export async function deployUserPanel({ token, accountId, cfg, onProgress }) {
     }
     progress(MSG.progress.secretsDone);
 
-    // 5) Upload dashboard static files into the user's KV (all inlined in one JSON payload).
-    progress(MSG.progress.assets);
-    const uploaded = await uploadAssets(token, accountId, kvId, dashboardFiles);
-    progress(MSG.progress.assetsDone);
-
-    // 6) Migrations on D1.
+    // 5) Migrations on D1.
     progress(MSG.progress.migrate);
     await applyMigrations(token, accountId, d1Id, cfg.projectRawBase);
     progress(MSG.progress.migrateDone);
 
-    // 7) Resolve subdomain + build final URL.
+    // 6) Resolve subdomain + build final URL.
     progress(MSG.progress.subdomain);
     const subdomain = await getSubdomain(token, accountId);
     if (!subdomain) {
@@ -104,10 +102,23 @@ export async function deployUserPanel({ token, accountId, cfg, onProgress }) {
     }
     const url = `https://${scriptName}.${subdomain}.workers.dev`;
 
-    return { url, adminEmail, adminPassword };
+    return {
+      url,
+      adminEmail,
+      adminPassword,
+      // PHASE 2 work, handed off to chained invocations so we never exceed waitUntil.
+      assetJob: { token, accountId, kvId, dashboardFiles },
+    };
   } catch (e) {
     // Re-throw DeployError as-is; wrap anything else with a step hint.
     if (e instanceof DeployError) throw e;
     throw new DeployError('deploy', e.message || 'Unexpected deploy error.');
   }
+}
+
+// PHASE 2: upload dashboard files. `attempt` is the retry index; `onRetry(next)` must kick
+// off a fresh invocation (new waitUntil budget) so we can survive the namespace propagation
+// delay. `onRetry` is supplied by index.js, which owns the self-trigger plumbing.
+export async function uploadAssetsStep(token, accountId, kvId, dashboardFiles, { attempt, onRetry }) {
+  return uploadAssets(token, accountId, kvId, dashboardFiles, { attempt, onRetry });
 }

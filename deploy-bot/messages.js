@@ -61,6 +61,12 @@ Type /cancel anytime to abort.`,
 _This password is shown only once — save it now._
 Log in, then change it under Settings. Your panel is pre-connected to your Cloudflare account.`,
 
+  // Sent right after the URL so the user knows assets are still landing.
+  assetsPending: (url) =>
+    `📁 *Dashboard files are uploading…*\nThis can take up to a minute while the storage namespace spins up. Your panel is already live at ${url} — files will appear shortly. I'll confirm when ready.`,
+
+  assetsDone: `✅ Dashboard files are ready. Your panel is fully set up — refresh ${''} to see the dashboard.`,
+
   noSubdomain: `⚠️ Your Cloudflare account has no \`*.workers.dev\` subdomain yet. Enable one at Workers → Your subdomain in the dashboard, then send /start again.`,
 
   bootError: `⚠️ The bot is not fully configured (missing BOT_TOKEN / BOT_ENCRYPTION_KEY / PROJECT_RAW_BASE). Contact the operator.`,

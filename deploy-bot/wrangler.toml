@@ -28,3 +28,6 @@ ALLOWED_TELEGRAM_USER_IDS = ""
 # Secrets are set via `wrangler secret put` (never commit them):
 #   BOT_TOKEN         — from @BotFather
 #   BOT_ENCRYPTION_KEY — 32-char string used to encrypt users' CF tokens at rest
+#   BOT_INTERNAL_KEY  — random string guarding the internal /__assets self-chain endpoint
+#                       (the bot calls this itself to upload dashboard files after the URL
+#                       is delivered; must not be guessable)

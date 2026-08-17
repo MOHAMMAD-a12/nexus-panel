@@ -40,13 +40,20 @@ export async function fetchMigration(base, file) {
   return fetchText(base, `migrations/${file}`);
 }
 
-// Upload every dashboard file into the user's KV. All file contents are inlined in
-// dashboard-files.json (base64). We use KV bulk-write in small chunks (<=10 keys each) so
-// the whole batch is just a handful of subrequests — critical because a single Worker
-// invocation is hard-capped at 50 subrequests (the free tier ignores max_subrequests).
-// A freshly-created namespace can 404 on its first write for a few seconds while it
-// propagates, so we retry the bulk call with a short backoff.
-export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
+// Upload every dashboard file into the user's KV via KV bulk-write in small chunks
+// (<=10 keys per call) so the whole batch is only a handful of subrequests — a single
+// Worker invocation is hard-capped at 50 subrequests (the free tier ignores max_subrequests).
+//
+// A freshly-created namespace can 404 on its first write for *several seconds* (sometimes
+// >30s) while it propagates across Cloudflare's edge. A Worker's waitUntil budget is too
+// short to poll in one shot, so instead of blocking we *chain* a fresh invocation on each
+// propagation failure via `onRetry`. Each chained invocation gets its own time budget, so
+// we can keep retrying until the namespace is ready. `attempt` is the retry index
+// (0 = first try). `onRetry(next)` must kick off a new invocation that calls uploadAssets
+// again with attempt = next. Returns the number of keys written on success.
+export async function uploadAssets(
+  token, accountId, kvId, dashboardFiles, { attempt = 0, maxAttempts = 8, onRetry } = {}
+) {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}`;
 
   const entries = dashboardFiles.map((f) => ({
@@ -56,12 +63,14 @@ export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
     base64: true,
   }));
 
-  // A freshly-created namespace can 404 on its first write for a few seconds while it
-  // propagates to the edge. Sleep once up front (5s) to let it settle — this is the only
-  // wait we do, so total elapsed time stays well within the Worker's waitUntil budget.
-  await new Promise((r) => setTimeout(r, 5000));
+  // Give a freshly-created namespace time to settle before the first write, and a touch more
+  // on each subsequent attempt. This sleep runs inside the (fresh) invocation's own budget.
+  const wait = attempt === 0 ? 5000 : 3000;
+  await new Promise((r) => setTimeout(r, wait));
 
   const CHUNK = 10;
+  let failStatus = 0;
+  let failErr = '';
   for (let i = 0; i < entries.length; i += CHUNK) {
     const slice = entries.slice(i, i + CHUNK);
     const res = await fetch(`${base}/bulk/write`, {
@@ -70,26 +79,24 @@ export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
       body: JSON.stringify(slice),
     });
     if (!res.ok) {
-      const lastErr = await res.text().catch(() => '');
-      // If it's still the propagation 404, retry a couple of times quickly; otherwise fail.
-      if (res.status === 404) {
-        let ok = false;
-        for (let attempt = 0; attempt < 3 && !ok; attempt++) {
-          await new Promise((r) => setTimeout(r, 3000));
-          const retry = await fetch(`${base}/bulk/write`, {
-            method: 'PUT',
-            headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-            body: JSON.stringify(slice),
-          });
-          if (retry.ok) { ok = true; break; }
-        }
-        if (!ok) throw new DeployError('assets', `KV bulk write failed (propagation): ${lastErr.slice(0, 160)}`);
-      } else {
-        throw new DeployError('assets', `KV bulk write failed: ${lastErr.slice(0, 160)}`);
-      }
+      failStatus = res.status;
+      failErr = await res.text().catch(() => '');
+      break;
     }
   }
-  return entries.length;
+
+  if (failStatus === 0) return entries.length; // every chunk wrote ok
+
+  // Still failing. If it's the propagation 404 and we have retries left, chain a fresh
+  // invocation to try again (new waitUntil budget each time). Otherwise give up clearly.
+  if (failStatus === 404 && attempt < maxAttempts && typeof onRetry === 'function') {
+    await onRetry(attempt + 1);
+    return 0; // a later invocation continues; this one hands off and returns
+  }
+  throw new DeployError(
+    'assets',
+    `KV bulk write failed${failStatus === 404 ? ' (namespace never became ready)' : ''}: ${failErr.slice(0, 160)}`
+  );
 }
 
 // Run both migrations on the user's D1.

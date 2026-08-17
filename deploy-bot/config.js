@@ -15,6 +15,7 @@ export function getBotConfig(env) {
   return {
     botToken: env.BOT_TOKEN || '',
     botEncryptionKey: env.BOT_ENCRYPTION_KEY || '',
+    internalKey: env.BOT_INTERNAL_KEY || '', // guards the internal /__assets self-chain endpoint
     projectRawBase: (env.PROJECT_RAW_BASE || '').replace(/\/+$/, ''), // no trailing slash
     allowedUserIds: allowedIds,
     // Subdomain prefix for each deployed panel worker.

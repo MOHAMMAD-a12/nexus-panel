@@ -73,6 +73,25 @@ export async function markDone(kv, chatId, result) {
   await saveSession(kv, chatId, session);
 }
 
+// PHASE 2 hand-off: keep the (encrypted) token in the session while the dashboard files are
+// uploaded by chained invocations, but remember which KV namespace to write into.
+export async function setAssetJob(kv, chatId, { kvId, accountId }) {
+  const session = await loadSession(kv, chatId);
+  session.state = 'assets';
+  session.assetKvId = kvId;
+  session.accountId = accountId;
+  // tokenEnc is intentionally kept so chained /__assets invocations can decrypt it.
+  await saveSession(kv, chatId, session);
+}
+
+// Purge only the token part of the session (called once assets succeed or give up).
+export async function clearToken(kv, chatId) {
+  const session = await loadSession(kv, chatId);
+  delete session.tokenEnc;
+  if (session.state === 'assets') session.state = STATES.DONE;
+  await saveSession(kv, chatId, session);
+}
+
 export async function resetToIdle(kv, chatId) {
   await clearSession(kv, chatId);
 }
