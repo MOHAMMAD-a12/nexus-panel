@@ -5,7 +5,7 @@
 // fetched via PROJECT_RAW_BASE. Each public/ file is written to the user's KV under the key
 // `assets:<path>` with { contentType } metadata, which the panel's serveKvAsset() reads.
 
-import { runMigration, DeployError } from './cloudflare.js';
+import { runMigration, kvNamespaceExists, DeployError } from './cloudflare.js';
 
 async function fetchText(base, path) {
   const res = await fetch(`${base}/${path}`, { headers: { 'user-agent': 'nexus-deploy-bot' } });
@@ -52,7 +52,7 @@ export async function fetchMigration(base, file) {
 // (0 = first try). `onRetry(next)` must kick off a new invocation that calls uploadAssets
 // again with attempt = next. Returns the number of keys written on success.
 export async function uploadAssets(
-  token, accountId, kvId, dashboardFiles, { attempt = 0, maxAttempts = 8, onRetry } = {}
+  token, accountId, kvId, dashboardFiles, { attempt = 0, maxAttempts = 20, onRetry } = {}
 ) {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}`;
 
@@ -65,7 +65,8 @@ export async function uploadAssets(
 
   // Give a freshly-created namespace time to settle before the first write, and a touch more
   // on each subsequent attempt. This sleep runs inside the (fresh) invocation's own budget.
-  const wait = attempt === 0 ? 5000 : 3000;
+  // Because PHASE 2 chains fresh invocations, we can afford to wait — each attempt is cheap.
+  const wait = attempt === 0 ? 6000 : 5000;
   await new Promise((r) => setTimeout(r, wait));
 
   const CHUNK = 10;
@@ -90,6 +91,18 @@ export async function uploadAssets(
   // Still failing. If it's the propagation 404 and we have retries left, chain a fresh
   // invocation to try again (new waitUntil budget each time). Otherwise give up clearly.
   if (failStatus === 404 && attempt < maxAttempts && typeof onRetry === 'function') {
+    // Diagnostic: confirm the namespace actually exists. If it doesn't, the kvId is wrong
+    // (or creation failed) and retrying forever is pointless — surface it loudly.
+    const exists = await kvNamespaceExists(token, accountId, kvId).catch(() => null);
+    console.log(
+      `[deploy-bot] assets 404 attempt=${attempt} kvId=${kvId} namespaceExists=${exists}`
+    );
+    if (exists === false) {
+      throw new DeployError(
+        'assets',
+        `KV namespace ${kvId} does not exist on your account. The deploy created it but it is missing — creation may have failed, or the token lacks KV permissions.`
+      );
+    }
     await onRetry(attempt + 1);
     return 0; // a later invocation continues; this one hands off and returns
   }

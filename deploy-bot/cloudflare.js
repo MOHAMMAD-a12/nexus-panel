@@ -221,6 +221,18 @@ export async function getSubdomain(token, accountId) {
   return json?.result?.subdomain || '';
 }
 
+// Check whether a KV namespace exists on the account. Used by the asset upload step to
+// distinguish a genuinely-missing namespace (wrong kvId / creation failed) from a
+// propagation delay (namespace exists but bulk-write still 404s for a while).
+export async function kvNamespaceExists(token, accountId, kvId) {
+  try {
+    const json = await cfFetch(token, 'GET', `/accounts/${accountId}/storage/kv/namespaces/${kvId}`);
+    return Boolean(json?.success && json?.result);
+  } catch {
+    return false;
+  }
+}
+
 // Build the non-secret bindings array (secrets are attached separately).
 export function buildBindings({ d1Id, kvId }) {
   return [
