@@ -9,10 +9,12 @@
     "deploy": "wrangler deploy",
     "build": "wrangler deploy --dry-run",
     "validate": "wrangler deploy --dry-run",
+    "bundle": "node build/deploy-bundle.mjs",
     "migrate:local": "wrangler d1 migrations apply nexus-panel-db --local",
     "migrate:remote": "wrangler d1 migrations apply nexus-panel-db --remote"
   },
   "devDependencies": {
-    "wrangler": "^3.78.0"
+    "wrangler": "^3.78.0",
+    "esbuild": "^0.24.0"
   }
 }

@@ -18,6 +18,11 @@ node_modules/
 dist/
 .out/
 
+# Deploy-bot fetches these prebuilt artifacts from GitHub raw; keep them tracked:
+!dist/nexus-panel.mjs
+!dist/assets-manifest.json
+!dist/dashboard-files.json
+
 # OS / editor
 .DS_Store
 Thumbs.db

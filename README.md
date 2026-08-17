@@ -383,6 +383,68 @@ Manual security checklist:
 
 ---
 
+## 🤖 Telegram Deploy Bot (self-serve install on a user's own Cloudflare)
+
+NEXUS PANEL ships with a **separate Cloudflare Worker** (`nexus-deploy-bot`) that lets anyone deploy
+their own fully-working panel onto **their own** Cloudflare account by chatting with a Telegram bot.
+The user pastes their Cloudflare **API Token** + **Account ID**, and the bot provisions D1, KV, the
+Worker script, secrets, dashboard assets, and migrations — then returns a live `*.workers.dev` URL
+with a generated admin login.
+
+> The bot uses the **Cloudflare REST API directly** (no `wrangler` CLI — it can't run on a Worker).
+> The panel is pre-built into a single ESM bundle (`dist/nexus-panel.mjs`) by `npm run bundle` and
+> fetched from the project's GitHub raw URL at deploy time. User tokens are **encrypted at rest** in
+> the bot's KV and **deleted** after the deploy finishes.
+
+### How a user deploys via the bot
+1. Start the bot: `/start`
+2. Paste their Cloudflare **API Token** (needs *Account → Workers Scripts → Edit*, *Account → D1 → Edit*, *Account → Workers KV Storage → Edit*).
+3. Paste their **Account ID**.
+4. Watch progress messages; receive the live URL + a one-time admin email/password.
+
+### Operator setup (you, the bot owner)
+```bash
+# 1) Build the bundle the bot fetches from GitHub (also done automatically by CI on push)
+npm install
+npm run bundle
+
+# 2) Create the bot's KV namespace, paste its id into deploy-bot/wrangler.toml
+wrangler kv namespace create BOT_KV --config deploy-bot/wrangler.toml
+
+# 3) Set the bot's secrets (from @BotFather + a 32-char encryption key)
+wrangler secret put BOT_TOKEN --config deploy-bot/wrangler.toml
+wrangler secret put BOT_ENCRYPTION_KEY --config deploy-bot/wrangler.toml
+
+# 4) Point PROJECT_RAW_BASE at your repo's raw tree (edit deploy-bot/wrangler.toml [vars]):
+#    PROJECT_RAW_BASE = "https://raw.githubusercontent.com/<owner>/<repo>/<branch>"
+
+# 5) Deploy the bot worker
+wrangler deploy --config deploy-bot/wrangler.toml
+
+# 6) Register the Telegram webhook (replace with your bot worker URL)
+curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://nexus-deploy-bot.<sub>.workers.dev/"
+```
+
+### Files
+| Path | Role |
+|---|---|
+| `deploy-bot/index.js` | Telegram webhook + `/health` + `/cancel` + state machine (self-contained folder) |
+| `deploy-bot/deploy.js` | Orchestrates the end-to-end deploy (progress + token purge) |
+| `deploy-bot/cloudflare.js` | Raw CF REST calls (D1/KV/script/secrets/migrations/subdomain) with retry/backoff |
+| `deploy-bot/assets.js` | Fetches bundle + migrations from GitHub; uploads dashboard into user KV |
+| `deploy-bot/state.js` | Per-chat session + encrypted token storage |
+| `deploy-bot/{config,telegram,messages}.js` | Config, TG client, copy |
+| `deploy-bot/lib/{crypto,id}.js` | Self-contained Web Crypto helpers (no dependency on the panel) |
+| `deploy-bot/wrangler.toml` | Bot worker config |
+| `build/deploy-bundle.mjs` | esbuild bundle + assets manifest generator |
+| `dist/nexus-panel.mjs`, `dist/assets-manifest.json` | Prebuilt, tracked artifacts the bot fetches |
+
+> The deployed panel has **no `ASSETS` binding** (fragile via raw API); instead it serves
+> `public/` from its own KV via a backward-compatible fallback in `src/worker/index.js`
+> (`serveKvAsset`). Normal `wrangler deploy` of the panel is unchanged.
+
+---
+
 ## 📄 License
 
 MIT — use freely, but ship it securely.

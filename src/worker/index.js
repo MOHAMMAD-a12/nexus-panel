@@ -147,7 +147,20 @@ async function routeRequest(request, env, ctx, identity, corsHeaders, apiKey = n
   if (!match) {
     // Let ASSETS handle non-API routes
     if (!url.pathname.startsWith('/api/')) {
-      return env.ASSETS.fetch(request);
+      // Normal deploy (wrangler.toml [assets]) serves static files via ASSETS binding.
+      if (env.ASSETS) return env.ASSETS.fetch(request);
+      // Bot-deployed workers are created via the raw Cloudflare API without an ASSETS
+      // binding, so they serve public/ files from their own KV namespace instead.
+      // (Backward-compatible: this branch only runs when ASSETS is absent.)
+      const kvAsset = await serveKvAsset(env.KV, url.pathname);
+      if (kvAsset) return kvAsset;
+      const indexHtml = await env.KV.get('assets:/index.html', { type: 'text', metadata: 'true' });
+      if (indexHtml && indexHtml.value != null) {
+        return new Response(indexHtml.value, {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+        });
+      }
     }
     return jsonError(`No route for ${url.pathname}`, 404);
   }
@@ -172,4 +185,19 @@ function handleError(e, headers) {
     console.error('[unhandled]', e && e.stack ? e.stack : String(e));
   }
   return json({ ok: false, error: mapped.body }, mapped.status, headers);
+}
+
+// Serve a static file from KV. Keys are stored as `assets:<path>` (e.g.
+// `assets:/css/styles.css`) with `{ contentType }` metadata. Falls back to
+// `/index.html` for `/` so the SPA shell loads. Returns null when not found.
+async function serveKvAsset(kv, pathname) {
+  if (!kv) return null;
+  const key = 'assets:' + (pathname === '/' ? '/index.html' : pathname);
+  const got = await kv.get(key, { type: 'arrayBuffer', metadata: 'true' });
+  if (!got || got.value == null) return null;
+  const ct = got.metadata?.contentType || 'application/octet-stream';
+  return new Response(got.value, {
+    status: 200,
+    headers: { 'content-type': ct, 'cache-control': 'public, max-age=300' },
+  });
 }

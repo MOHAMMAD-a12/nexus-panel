@@ -1,0 +1,30 @@
+name = "nexus-deploy-bot"
+main = "index.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The bot makes many outbound calls in a single invocation (progress messages +
+# Cloudflare API calls: D1, KV, script upload, ~6 secrets, asset uploads, migrations).
+# Raise the subrequest cap well above the default 50 so a deploy doesn't hit the limit.
+[limits]
+max_subrequests = 1000
+
+workers_dev = true
+send_metrics = false
+
+# Transient per-chat deploy state (encrypted user token, step, result).
+[[kv_namespaces]]
+binding = "BOT_KV"
+id = "caf6dcdb99984d8682632de5befdbbc0"
+
+# Environment variables (NON-SECRET).
+# PROJECT_RAW_BASE must point at the raw GitHub tree that holds dist/ + migrations/.
+# Replace <owner>/<repo>/<branch> with your actual repository.
+[vars]
+PROJECT_RAW_BASE = "https://raw.githubusercontent.com/MOHAMMAD-a12/nexus-panel/main"
+# Optional: comma-separated Telegram user IDs allowed to use the bot. Empty = open.
+ALLOWED_TELEGRAM_USER_IDS = ""
+
+# Secrets are set via `wrangler secret put` (never commit them):
+#   BOT_TOKEN         — from @BotFather
+#   BOT_ENCRYPTION_KEY — 32-char string used to encrypt users' CF tokens at rest
