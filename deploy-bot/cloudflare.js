@@ -105,9 +105,9 @@ export async function createD1(token, accountId, name) {
   const json = await cfFetch(token, 'POST', `/accounts/${accountId}/d1/database`, {
     body: { name },
   });
-  // Cloudflare returns the database id as `result.id` in some API versions and
-  // `result.uuid` in others — accept both.
-  const id = json?.result?.id || json?.result?.uuid;
+  // Cloudflare returns the database id at the top level as `uuid` (per wrangler's
+  // createD1Database -> db.uuid) and sometimes nested under result. Accept all variants.
+  const id = json?.uuid || json?.result?.uuid || json?.result?.id || json?.id;
   if (!id) {
     const detail =
       json?.errors?.length
@@ -122,8 +122,11 @@ export async function createKV(token, accountId, title) {
   const json = await cfFetch(token, 'POST', `/accounts/${accountId}/storage/kv/namespaces`, {
     body: { title },
   });
-  if (!json?.result?.id) throw new DeployError('kv', 'Cloudflare did not return a KV namespace id.');
-  return json.result.id;
+  // The KV create endpoint returns the id at the TOP LEVEL (json.id), not nested under
+  // result — unlike most CF endpoints. Mirror wrangler's `createKVNamespace` (response.id).
+  const id = json?.id || json?.result?.id;
+  if (!id) throw new DeployError('kv', 'Cloudflare did not return a KV namespace id.');
+  return id;
 }
 
 // Upload the bundled worker with bindings (non-secret only). We upload as a multipart
