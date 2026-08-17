@@ -47,6 +47,7 @@ export async function fetchMigration(base, file) {
 // A freshly-created namespace can 404 on its first write for a few seconds while it
 // propagates, so we retry the bulk call with a short backoff.
 export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
+  console.log('[deploy-bot] uploadAssets kvId:', kvId, 'accountId:', accountId);
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}`;
 
   const entries = dashboardFiles.map((f) => ({
