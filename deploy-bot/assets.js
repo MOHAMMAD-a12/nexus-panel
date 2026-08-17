@@ -44,17 +44,10 @@ export async function fetchMigration(base, file) {
 // dashboard-files.json (base64). We use KV bulk-write in small chunks (<=10 keys each) so
 // the whole batch is just a handful of subrequests — critical because a single Worker
 // invocation is hard-capped at 50 subrequests (the free tier ignores max_subrequests).
-// A freshly-created namespace can 404 on its very first write, so we "warm" it with a tiny
-// write before the real bulk calls.
+// A freshly-created namespace can 404 on its first write for a few seconds while it
+// propagates, so we retry the bulk call with a short backoff.
 export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}`;
-
-  // Warm-up write so the namespace is ready for bulk operations.
-  await fetch(`${base}/values/__warmup__`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'content-type': 'text/plain' },
-    body: 'ok',
-  }).catch(() => {});
 
   const entries = dashboardFiles.map((f) => ({
     key: `assets:${f.path}`,
@@ -66,14 +59,23 @@ export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
   const CHUNK = 10;
   for (let i = 0; i < entries.length; i += CHUNK) {
     const slice = entries.slice(i, i + CHUNK);
-    const res = await fetch(`${base}/bulk/write`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify(slice),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new DeployError('assets', `KV bulk write failed (${res.status}): ${text.slice(0, 160)}`);
+    let lastErr = '';
+    let ok = false;
+    for (let attempt = 0; attempt < 5 && !ok; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      const res = await fetch(`${base}/bulk/write`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(slice),
+      });
+      if (res.ok) {
+        ok = true;
+        break;
+      }
+      lastErr = await res.text().catch(() => '');
+    }
+    if (!ok) {
+      throw new DeployError('assets', `KV bulk write failed: ${lastErr.slice(0, 160)}`);
     }
   }
   return entries.length;
