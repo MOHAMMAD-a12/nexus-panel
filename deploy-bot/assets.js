@@ -62,8 +62,8 @@ export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
     const slice = entries.slice(i, i + CHUNK);
     let lastErr = '';
     let ok = false;
-    for (let attempt = 0; attempt < 5 && !ok; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+    for (let attempt = 0; attempt < 8 && !ok; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 5000));
       const res = await fetch(`${base}/bulk/write`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
