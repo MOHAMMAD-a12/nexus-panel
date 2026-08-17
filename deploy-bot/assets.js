@@ -41,36 +41,34 @@ export async function fetchMigration(base, file) {
 }
 
 // Upload every dashboard file into the user's KV. All file contents are inlined in
-// dashboard-files.json, so we only need ONE fetch + a couple of bulk-write calls.
+// dashboard-files.json (base64). We write each key with an individual PUT rather than a
+// bulk-write: a freshly-created namespace can intermittently 404 on bulk-write, and per-key
+// PUTs isolate a bad file without failing the whole batch. With max_subrequests=1000 this
+// stays well under the cap.
 export async function uploadAssets(token, accountId, kvId, dashboardFiles) {
-  const entries = dashboardFiles.map((f) => ({
-    key: `assets:${f.path}`,
-    value: f.content, // already base64 in the bundle
-    metadata: { contentType: f.contentType },
-    base64: true,
-  }));
+  for (const f of dashboardFiles) {
+    // Decode the base64 payload back to raw bytes for the PUT body.
+    const binary = atob(f.content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-  // Chunk to avoid oversized requests.
-  const CHUNK = 30;
-  for (let i = 0; i < entries.length; i += CHUNK) {
-    const slice = entries.slice(i, i + CHUNK);
     const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}/bulk/write`,
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${kvId}/values/assets:${f.path}`,
       {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
+          'content-type': f.contentType,
         },
-        body: JSON.stringify(slice),
+        body: bytes,
       }
     );
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new DeployError('assets', `KV bulk write failed (${res.status}): ${text.slice(0, 160)}`);
+      throw new DeployError('assets', `KV put failed for ${f.path} (${res.status}): ${text.slice(0, 160)}`);
     }
   }
-  return entries.length;
+  return dashboardFiles.length;
 }
 
 function arrayBufferToBase64(buf) {

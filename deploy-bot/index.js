@@ -153,9 +153,9 @@ async function runDeploy({ cfg, env, kv, chatId, accountId }) {
     await resetToIdle(kv, chatId);
     const step = e instanceof DeployError ? e.step : 'deploy';
     let message = e instanceof DeployError ? e.message : e.message || 'Unknown error';
-    // Strip characters that break Telegram Markdown parsing (braces, brackets).
-    message = message.replace(/[{}[\]]/g, '').trim();
-    await sendMessage(cfg.botToken, chatId, MSG.failed(step, message));
+    // Send the failure as plain text (parseMode=null): raw error strings often contain
+    // `*`, `_`, or `{` which would break Telegram's Markdown entity parser.
+    await sendMessage(cfg.botToken, chatId, `Deploy failed at: ${step}.\n${message}\n\nYour token has been discarded. Type /start to try again.`, null);
   } finally {
     token = null; // drop the decrypted token reference
   }

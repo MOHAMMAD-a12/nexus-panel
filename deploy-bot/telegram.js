@@ -25,13 +25,12 @@ async function tgFetch(token, method, payload, isForm = false) {
 }
 
 // Send a chat message. `parseMode` 'Markdown' enables *bold* / `code` in messages.js.
+// Pass parseMode = null to send plain text (used for raw error messages that contain
+// characters which would break Telegram's Markdown entity parser, e.g. `*`, `_`, `{`).
 export async function sendMessage(token, chatId, text, parseMode = 'Markdown') {
-  return tgFetch(token, 'sendMessage', {
-    chat_id: chatId,
-    text,
-    parse_mode: parseMode,
-    disable_web_page_preview: true,
-  });
+  const payload = { chat_id: chatId, text, disable_web_page_preview: true };
+  if (parseMode) payload.parse_mode = parseMode;
+  return tgFetch(token, 'sendMessage', payload);
 }
 
 // Register the webhook URL for this bot. Call once after deploy (or via curl).
